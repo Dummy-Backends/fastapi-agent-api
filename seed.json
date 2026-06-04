@@ -1,0 +1,175 @@
+{
+  "meta": {
+    "description": "TeamBoostAI take-home starter seed. Do not change IDs for task-001 / task-002 / engineer-a / engineer-b / pr-042 if you use this file — graders run the dependency-stall scenario against them.",
+    "version": "1.1"
+  },
+  "engineers": [
+    {
+      "id": "engineer-a",
+      "name": "Alex Martin",
+      "email": "alex.martin@teamboost.demo",
+      "team": "platform"
+    },
+    {
+      "id": "engineer-b",
+      "name": "Samira Chen",
+      "email": "samira.chen@teamboost.demo",
+      "team": "platform"
+    },
+    {
+      "id": "engineer-c",
+      "name": "Jordan Lee",
+      "email": "jordan.lee@teamboost.demo",
+      "team": "backend"
+    },
+    {
+      "id": "engineer-d",
+      "name": "Priya Nair",
+      "email": "priya.nair@teamboost.demo",
+      "team": "backend"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-001",
+      "title": "Implement auth middleware for public API",
+      "description": "Add JWT validation middleware on /api routes. Includes token refresh flow and integration tests for 401/403 paths.",
+      "owner_id": "engineer-a",
+      "status": "in_progress",
+      "due_date": "2026-06-05",
+      "related_pr_id": "pr-042",
+      "sprint_id": "sprint-14",
+      "team": "platform"
+    },
+    {
+      "id": "task-002",
+      "title": "Expose user profile endpoints",
+      "description": "Build GET/PATCH /api/users/{id} after auth middleware is merged. Depends on shared auth context from middleware task.",
+      "owner_id": "engineer-b",
+      "status": "blocked",
+      "due_date": "2026-06-08",
+      "related_pr_id": null,
+      "sprint_id": "sprint-14",
+      "team": "platform"
+    },
+    {
+      "id": "task-003",
+      "title": "Optimize checkout query performance",
+      "description": "Reduce p95 latency on /checkout/summary. No upstream task dependencies. Owner must deliver index migration and load test results.",
+      "owner_id": "engineer-c",
+      "status": "in_progress",
+      "due_date": "2026-06-04",
+      "related_pr_id": "pr-017",
+      "sprint_id": "sprint-14",
+      "team": "backend"
+    },
+    {
+      "id": "task-004",
+      "title": "Payment webhook handler refactor",
+      "description": "Awaiting staff engineer review on idempotency design. Blocked on review sign-off, not on another engineering task.",
+      "owner_id": "engineer-d",
+      "status": "in_review",
+      "due_date": "2026-06-10",
+      "related_pr_id": "pr-031",
+      "sprint_id": "sprint-14",
+      "team": "backend"
+    },
+    {
+      "id": "task-005",
+      "title": "Fix OAuth token refresh race condition",
+      "description": "Resolve concurrent refresh requests causing invalid sessions. Closely related to auth middleware and API gateway security work.",
+      "owner_id": "engineer-a",
+      "status": "todo",
+      "due_date": "2026-06-12",
+      "related_pr_id": null,
+      "sprint_id": "sprint-15",
+      "team": "platform"
+    },
+    {
+      "id": "task-006",
+      "title": "Add rate limiting to edge gateway",
+      "description": "Per-tenant rate limits on ingress. Related to API security and auth rollout.",
+      "owner_id": "engineer-b",
+      "status": "todo",
+      "due_date": "2026-06-15",
+      "related_pr_id": null,
+      "sprint_id": "sprint-15",
+      "team": "platform"
+    }
+  ],
+  "dependencies": [
+    {
+      "task_id": "task-002",
+      "depends_on_task_id": "task-001",
+      "type": "finish_to_start"
+    },
+    {
+      "task_id": "task-006",
+      "depends_on_task_id": "task-001",
+      "type": "finish_to_start"
+    }
+  ],
+  "pr_events": [
+    {
+      "pr_id": "pr-042",
+      "task_id": "task-001",
+      "status": "open",
+      "timestamp": "2026-05-30T14:00:00Z",
+      "ci_message": null
+    },
+    {
+      "pr_id": "pr-042",
+      "task_id": "task-001",
+      "status": "failed",
+      "timestamp": "2026-06-01T08:30:00Z",
+      "ci_message": "Integration tests failed: 401 handling on /api/users"
+    },
+    {
+      "pr_id": "pr-017",
+      "task_id": "task-003",
+      "status": "open",
+      "timestamp": "2026-05-29T09:00:00Z",
+      "ci_message": null
+    },
+    {
+      "pr_id": "pr-017",
+      "task_id": "task-003",
+      "status": "failed",
+      "timestamp": "2026-06-01T11:00:00Z",
+      "ci_message": "Load test p95 exceeded 800ms threshold"
+    },
+    {
+      "pr_id": "pr-031",
+      "task_id": "task-004",
+      "status": "open",
+      "timestamp": "2026-05-29T16:30:00Z",
+      "ci_message": null
+    }
+  ],
+  "activity_log": [
+    {
+      "id": "act-001",
+      "task_id": "task-001",
+      "engineer_id": "engineer-a",
+      "type": "comment",
+      "message": "CI still red on integration suite — investigating refresh token edge case",
+      "timestamp": "2026-06-01T08:50:00Z"
+    },
+    {
+      "id": "act-002",
+      "task_id": "task-002",
+      "engineer_id": "engineer-b",
+      "type": "status_change",
+      "message": "Marked blocked waiting on task-001 middleware merge",
+      "timestamp": "2026-05-31T10:00:00Z"
+    },
+    {
+      "id": "act-003",
+      "task_id": "task-003",
+      "engineer_id": "engineer-c",
+      "type": "comment",
+      "message": "No external blockers — need to finish index migration",
+      "timestamp": "2026-06-01T10:30:00Z"
+    }
+  ]
+}
