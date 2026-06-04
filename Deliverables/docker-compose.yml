@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  investigator-api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - LLM_PROVIDER=mock
+      - DATABASE_URL=sqlite:///recruitment.db
+      - CHROMA_PERSIST_PATH=/app/chroma_db
+      - HOST=0.0.0.0
+      - PORT=8000
+    volumes:
+      - chroma_data:/app/chroma_db
+      - db_data:/app
+
+volumes:
+  chroma_data:
+  db_data:
