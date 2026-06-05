@@ -355,7 +355,7 @@ Generate the notification message.
             if classification == "DEPENDENCY_BLOCK":
                 # Find who is blocked
                 blocked = db.fetch_blocked_engineers(task_id)
-                blocked_names = [b["name"] for b in blocked]
+                blocked_names = list(dict.fromkeys([b["name"] for b in blocked]))
                 blocked_str = ", ".join(blocked_names) if blocked_names else "other team members"
                 
                 return (

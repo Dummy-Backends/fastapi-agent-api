@@ -1,5 +1,5 @@
 .DS_Store
-implementation_plan.md
+.doc/
 .env
 venv/
 __pycache__/
