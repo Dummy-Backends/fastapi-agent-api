@@ -2,3 +2,4 @@
 implementation_plan.md
 .env
 venv/
+__pycache__/
