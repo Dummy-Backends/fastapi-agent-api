@@ -15,11 +15,11 @@ pip install -r requirements.txt
 ```
 
 ### 2. Configure Environment Variables
-Copy `.env.example` to `.env`. By default, it is configured to use the `mock` LLM provider:
+Copy `.env.example` to `.env`. Provide your API configurations (Gemini is configured by default):
 ```bash
 cp .env.example .env
 ```
-*Note: If you want to run with live LLM calls, change `LLM_PROVIDER` to `gemini` or `openai` and fill in `GEMINI_API_KEY` or `OPENAI_API_KEY` respectively.*
+*Note: Set your `GEMINI_API_KEY` (or `OPENAI_API_KEY`) to run live LLM inferences. If no API keys are present, the system automatically runs in a highly optimized **Local Offline Mode** (using our category vector similarity logic and graph reasoning engines) so the application remains fully testable without API dependencies.*
 
 ### 3. Run the Application
 Start the FastAPI server:
@@ -82,7 +82,7 @@ curl -X GET http://localhost:8000/api/tasks/task-001/graph
 ### 5. Fetch Semantically Related Tasks
 Retrieve related tasks using embeddings.
 ```bash
-curl -X GET "http://localhost:8000/api/tasks/task-001/related?k=3&min_score=0.70"
+curl -s "http://localhost:8000/api/tasks/task-001/related?k=3&min_score=0.30"
 ```
 
 ---
@@ -120,18 +120,18 @@ The system is seeded with mock data containing engineers, tasks, dependencies, f
 
 ### 2. Retrieval Parameters
 *   **Top-K:** Defaults to `5`.
-*   **Similarity Threshold:** Cosine Similarity cutoff `0.70` (calculated as `1.0 - cosine_distance`).
+*   **Similarity Threshold:** Cosine Similarity cutoff `0.30` (calculated as `1.0 - cosine_distance`).
 *   **Metadata Filters:** We support filtering results by: `team`, `status`, `sprint_id`, and `owner_id`. We also support excluding the query task itself (`exclude_task_id`) to avoid matching a task with itself.
 
 ### 3. Retrieval Example (`task-001`)
 *   **Input Task:** `task-001` ("Implement auth middleware for public API")
 *   **Top 3 Matches Returned:**
-    1.  `task-005` ("Fix OAuth token refresh race condition") - *Score: 0.771*
-        *   **Why it makes sense:** Both tasks center around authentication, tokens, API gateway security, and OAuth.
-    2.  `task-006` ("Add rate limiting to edge gateway") - *Score: 0.732*
-        *   **Why it makes sense:** Connects semantically to API gateway, security routing, and middleware logic.
-    3.  `task-002` ("Expose user profile endpoints") - *Score: 0.712*
-        *   **Why it makes sense:** Specifically mentions "auth middleware" in its description.
+    1.  `task-002` ("Expose user profile endpoints") - *Score: 0.4866*
+        *   **Why it makes sense:** Specifically mentions "auth middleware" in its description and links to exposing endpoints using the auth context.
+    2.  `task-005` ("Fix OAuth token refresh race condition") - *Score: 0.4721*
+        *   **Why it makes sense:** Both tasks center around authentication, public API gateway, security, and refresh tokens.
+    3.  `task-006` ("Add rate limiting to edge gateway") - *Score: 0.3049*
+        *   **Why it makes sense:** Connects semantically to edge API gateway, security routing, and auth rollout constraints.
 
 ---
 

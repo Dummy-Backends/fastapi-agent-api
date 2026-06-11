@@ -1,0 +1,171 @@
+================================================================================
+TEAMBOOSTAI BOTTLENECK INVESTIGATOR — EXAMPLE RUN TERMINAL LOG
+================================================================================
+
+1. API HEALTH CHECK
+-------------------
+Command:
+$ curl -s http://localhost:8000/api/health
+
+Response:
+{
+  "status": "healthy",
+  "database": "connected",
+  "vector_store": "ready"
+}
+
+2. FETCH DEPENDENCY GRAPH FOR DEBUGGING
+---------------------------------------
+Command:
+$ curl -s http://localhost:8000/api/tasks/task-001/graph
+
+Response:
+{
+  "task_id": "task-001",
+  "task_title": "Implement auth middleware for public API",
+  "status": "in_progress",
+  "owner": "Alex Martin",
+  "upstream_blockers": [],
+  "downstream_impacted": [
+    {
+      "id": "task-002",
+      "title": "Expose user profile endpoints",
+      "status": "blocked",
+      "owner": "Samira Chen"
+    },
+    {
+      "id": "task-006",
+      "title": "Add rate limiting to edge gateway",
+      "status": "todo",
+      "owner": "Samira Chen"
+    }
+  ]
+}
+
+3. SEMANTIC RELATED TASKS LOOKUP
+--------------------------------
+Command:
+$ curl -s "http://localhost:8000/api/tasks/task-001/related?k=3&min_score=0.30"
+
+Response:
+{
+  "query_task_id": "task-001",
+  "query_used": "Title: Implement auth middleware for public API\nDescription: Add JWT validation middleware on /api routes. Includes token refresh flow and integration tests for 401/403 paths.",
+  "min_score": 0.3,
+  "results": [
+    {
+      "id": "task-002",
+      "title": "Expose user profile endpoints",
+      "description": "Build GET/PATCH /api/users/{id} after auth middleware is merged. Depends on shared auth context from middleware task.",
+      "owner_id": "engineer-b",
+      "status": "blocked",
+      "due_date": "2026-06-08",
+      "related_pr_id": null,
+      "sprint_id": "sprint-14",
+      "team": "platform",
+      "owner_name": "Samira Chen",
+      "owner_email": "samira.chen@teamboost.demo",
+      "owner_team": "platform",
+      "similarity_score": 0.4866
+    },
+    {
+      "id": "task-005",
+      "title": "Fix OAuth token refresh race condition",
+      "description": "Resolve concurrent refresh requests causing invalid sessions. Closely related to auth middleware and API gateway security work.",
+      "owner_id": "engineer-a",
+      "status": "todo",
+      "due_date": "2026-06-12",
+      "related_pr_id": null,
+      "sprint_id": "sprint-15",
+      "team": "platform",
+      "owner_name": "Alex Martin",
+      "owner_email": "alex.martin@teamboost.demo",
+      "owner_team": "platform",
+      "similarity_score": 0.4721
+    },
+    {
+      "id": "task-006",
+      "title": "Add rate limiting to edge gateway",
+      "description": "Per-tenant rate limits on ingress. Related to API security and auth rollout.",
+      "owner_id": "engineer-b",
+      "status": "todo",
+      "due_date": "2026-06-15",
+      "related_pr_id": null,
+      "sprint_id": "sprint-15",
+      "team": "platform",
+      "owner_name": "Samira Chen",
+      "owner_email": "samira.chen@teamboost.demo",
+      "owner_team": "platform",
+      "similarity_score": 0.3049
+    }
+  ]
+}
+
+4. TRIGGER AGENT BOTTLENECK INVESTIGATION
+-----------------------------------------
+Command:
+$ curl -X POST http://localhost:8000/api/investigate \
+       -H "Content-Type: application/json" \
+       -d '{"pr_id": "pr-042"}'
+
+Response:
+{
+  "investigation_id": "2661ee71-b45f-4cdd-a9f7-8e5c96f8433a",
+  "task_id": "task-001",
+  "status": "pending",
+  "message": "Investigation started in background."
+}
+
+5. CHECK DYNAMIC AGENT INVESTIGATION LOGS AND RESULT
+----------------------------------------------------
+Command:
+$ curl -s http://localhost:8000/api/investigations/2661ee71-b45f-4cdd-a9f7-8e5c96f8433a
+
+Response:
+{
+  "id": "2661ee71-b45f-4cdd-a9f7-8e5c96f8433a",
+  "task_id": "task-001",
+  "status": "completed",
+  "classification": "DEPENDENCY_BLOCK",
+  "trace": [
+    {
+      "step": 1,
+      "type": "tool_call",
+      "action": "get_task(task_id=\"task-001\")",
+      "observation": "{\"id\": \"task-001\", \"title\": \"Implement auth middleware for public API\", \"description\": \"Add JWT validation middleware on /api routes. Includes token refresh flow and integration tests for 401/403 paths.\", \"owner_id\": \"engineer-a\", \"status\": \"in_progress\", \"due_date\": \"2026-06-05\", \"related_pr_id\": \"pr-042\", \"sprint_id\": \"sprint-14\", \"team\": \"platform\", \"owner_name\": \"Alex Martin\", \"owner_email\": \"alex.martin@teamboost.demo\", \"owner_team\": \"platform\"}"
+    },
+    {
+      "step": 2,
+      "type": "tool_call",
+      "action": "get_pr_history(task_id=\"task-001\")",
+      "observation": "[{\"pr_id\": \"pr-042\", \"task_id\": \"task-001\", \"status\": \"failed\", \"timestamp\": \"2026-06-01T08:30:00Z\", \"ci_message\": \"Integration tests failed: 401 handling on /api/users\"}, {\"pr_id\": \"pr-042\", \"task_id\": \"task-001\", \"status\": \"open\", \"timestamp\": \"2026-05-30T14:00:00Z\", \"ci_message\": null}]"
+    },
+    {
+      "step": 3,
+      "type": "tool_call",
+      "action": "get_dependency_graph(task_id=\"task-001\")",
+      "observation": "{\"task_id\": \"task-001\", \"upstream_blockers\": [], \"downstream_impacted\": [\"task-002\", \"task-006\"]}"
+    },
+    {
+      "step": 4,
+      "type": "tool_call",
+      "action": "get_blocked_engineers(task_id=\"task-001\")",
+      "observation": "[{\"id\": \"engineer-b\", \"name\": \"Samira Chen\", \"email\": \"samira.chen@teamboost.demo\", \"team\": \"platform\", \"task_id\": \"task-002\", \"task_title\": \"Expose user profile endpoints\"}, {\"id\": \"engineer-b\", \"name\": \"Samira Chen\", \"email\": \"samira.chen@teamboost.demo\", \"team\": \"platform\", \"task_id\": \"task-006\", \"task_title\": \"Add rate limiting to edge gateway\"}]"
+    },
+    {
+      "step": 5,
+      "type": "tool_call",
+      "action": "search_related_tasks(query=\"Implement auth middleware for public API\", top_k=3, min_score=0.50, exclude_task_id=\"task-001\")",
+      "observation": "[{\"id\": \"task-002\", \"title\": \"Expose user profile endpoints\", \"description\": \"Build GET/PATCH /api/users/{id} after auth middleware is merged. Depends on shared auth context from middleware task.\", \"owner_id\": \"engineer-b\", \"status\": \"blocked\", \"due_date\": \"2026-06-08\", \"related_pr_id\": null, \"sprint_id\": \"sprint-14\", \"team\": \"platform\", \"owner_name\": \"Samira Chen\", \"owner_email\": \"samira.chen@teamboost.demo\", \"owner_team\": \"platform\", \"similarity_score\": 0.4866}, {\"id\": \"task-005\", \"title\": \"Fix OAuth token refresh race condition\", \"description\": \"Resolve concurrent refresh requests causing invalid sessions. Closely related to auth middleware and API gateway security work.\", \"owner_id\": \"engineer-a\", \"status\": \"todo\", \"due_date\": \"2026-06-12\", \"related_pr_id\": null, \"sprint_id\": \"sprint-15\", \"team\": \"platform\", \"owner_name\": \"Alex Martin\", \"owner_email\": \"alex.martin@teamboost.demo\", \"owner_team\": \"platform\", \"similarity_score\": 0.4721}, {\"id\": \"task-006\", \"title\": \"Add rate limiting to edge gateway\", \"description\": \"Per-tenant rate limits on ingress. Related to API security and auth rollout.\", \"owner_id\": \"engineer-b\", \"status\": \"todo\", \"due_date\": \"2026-06-15\", \"related_pr_id\": null, \"sprint_id\": \"sprint-15\", \"team\": \"platform\", \"owner_name\": \"Samira Chen\", \"owner_email\": \"samira.chen@teamboost.demo\", \"owner_team\": \"platform\", \"similarity_score\": 0.3049}]"
+    },
+    {
+      "step": 6,
+      "type": "complete",
+      "action": "Finish investigation",
+      "observation": "Mock investigation completed for task task-001. Retrieved details, PR events, blockers, and semantic relations."
+    }
+  ],
+  "classification": "DEPENDENCY_BLOCK",
+  "notification": "Hi Alex Martin, your task task-001 ('Implement auth middleware for public API') (PR #042) has failed CI or is delayed, which is blocking Samira Chen from starting their downstream work. Please prioritize checking the logs and moving this forward."
+}
+================================================================================

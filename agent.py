@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "mock").lower()
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini").lower()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
@@ -78,14 +78,14 @@ TOOLS = {
 
 # API Call Helpers
 def call_llm(system_prompt: str, prompt: str, temperature: float = 0.7) -> str:
-    """Dispatch LLM request to configured provider or fallback to mock."""
+    """Dispatch LLM request to configured provider or fallback to simulated."""
     if LLM_PROVIDER == "gemini" and GEMINI_API_KEY:
         return call_gemini_api(system_prompt, prompt, temperature)
     elif LLM_PROVIDER == "openai" and OPENAI_API_KEY:
         return call_openai_api(system_prompt, prompt, temperature)
     else:
-        # Fallback to mock behavior or raise warning
-        return "MOCK_LLM_RESPONSE"
+        # Fallback to simulated behavior or raise warning
+        return "SIMULATED_LLM_RESPONSE"
 
 def call_gemini_api(system_prompt: str, prompt: str, temperature: float) -> str:
     import httpx
@@ -113,7 +113,7 @@ def call_gemini_api(system_prompt: str, prompt: str, temperature: float) -> str:
         return res_json["candidates"][0]["content"]["parts"][0]["text"].strip()
     except Exception as e:
         print(f"Error calling Gemini API: {e}")
-        return "MOCK_LLM_RESPONSE"
+        return "SIMULATED_LLM_RESPONSE"
 
 def call_openai_api(system_prompt: str, prompt: str, temperature: float) -> str:
     from openai import OpenAI
@@ -130,7 +130,39 @@ def call_openai_api(system_prompt: str, prompt: str, temperature: float) -> str:
         return response.choices[0].message.content.strip()
     except Exception as e:
         print(f"Error calling OpenAI API: {e}")
-        return "MOCK_LLM_RESPONSE"
+        return "SIMULATED_LLM_RESPONSE"
+
+
+def call_simulated_agent_brain(task: Dict[str, Any], trace: List[Dict[str, Any]]) -> str:
+    """
+    Simulates a dynamic LLM planning response based on which tools have been executed.
+    Ensures that simulated/offline runs execute a true feedback loop rather than a hardcoded pipeline.
+    """
+    task_id = task["id"]
+    task_title = task["title"]
+    
+    # Analyze the actions executed in previous trace steps
+    completed_actions = [t["action"] for t in trace if t["type"] == "tool_call"]
+    
+    has_get_task = any("get_task" in act for act in completed_actions)
+    has_get_pr_history = any("get_pr_history" in act for act in completed_actions)
+    has_get_dependency_graph = any("get_dependency_graph" in act for act in completed_actions)
+    has_get_blocked_engineers = any("get_blocked_engineers" in act for act in completed_actions)
+    has_search_related_tasks = any("search_related_tasks" in act for act in completed_actions)
+    
+    # Dynamically select the next logical tool request
+    if not has_get_task:
+        return f'TOOL_CALL: get_task(task_id="{task_id}")'
+    elif not has_get_pr_history:
+        return f'TOOL_CALL: get_pr_history(task_id="{task_id}")'
+    elif not has_get_dependency_graph:
+        return f'TOOL_CALL: get_dependency_graph(task_id="{task_id}")'
+    elif not has_get_blocked_engineers:
+        return f'TOOL_CALL: get_blocked_engineers(task_id="{task_id}")'
+    elif not has_search_related_tasks:
+        return f'TOOL_CALL: search_related_tasks(query="{task_title}", top_k=3, min_score=0.50, exclude_task_id="{task_id}")'
+    else:
+        return f"INVESTIGATION_COMPLETE: Simulated investigation completed for task {task_id}. Retrieved details, PR events, blockers, and semantic relations."
 
 
 class BottleneckInvestigatorAgent:
@@ -182,12 +214,14 @@ Do not write code blocks or markdown backticks for the output. Follow this plan:
                 
             current_prompt = f"{prompt}\n\nHere is what you have done so far:\n{history_str}What is your next action?"
             
-            response = call_llm(system_prompt, current_prompt, temperature=0.3)
+            # Fetch decision: Use dynamic simulated brain in simulated mode or when API keys are absent
+            if LLM_PROVIDER == "simulated" or not (GEMINI_API_KEY or OPENAI_API_KEY):
+                response = call_simulated_agent_brain(task, self.trace)
+            else:
+                response = call_llm(system_prompt, current_prompt, temperature=0.3)
+                if response == "SIMULATED_LLM_RESPONSE":
+                    response = call_simulated_agent_brain(task, self.trace)
             
-            if response == "MOCK_LLM_RESPONSE" or LLM_PROVIDER == "mock":
-                # Handle mock execution in a structured way that mirrors actual LLM run
-                return self.run_mock_loop(task)
-                
             if response.startswith("TOOL_CALL:"):
                 # Parse tool name and args
                 match = re.match(r"TOOL_CALL:\s*(\w+)\((.*)\)", response)
@@ -251,36 +285,6 @@ Do not write code blocks or markdown backticks for the output. Follow this plan:
                 
         return "Agent reached maximum steps without completing."
 
-    def run_mock_loop(self, task: Dict[str, Any]) -> str:
-        """Simulates the step-by-step tool execution loop for testing/no-API-key runs."""
-        task_id = task["id"]
-        
-        # Step 1: Get Task details
-        obs1 = tool_get_task(task_id)
-        self.log_step("tool_call", f"get_task(task_id='{task_id}')", obs1)
-        
-        # Step 2: Get PR History
-        obs2 = tool_get_pr_history(task_id)
-        self.log_step("tool_call", f"get_pr_history(task_id='{task_id}')", obs2)
-        
-        # Step 3: Get Dependency Graph
-        obs3 = tool_get_dependency_graph(task_id)
-        self.log_step("tool_call", f"get_dependency_graph(task_id='{task_id}')", obs3)
-        
-        # Step 4: Get Blocked Engineers
-        obs4 = tool_get_blocked_engineers(task_id)
-        self.log_step("tool_call", f"get_blocked_engineers(task_id='{task_id}')", obs4)
-        
-        # Step 5: Search Related Tasks
-        query = f"{task['title']} {task['description']}"
-        obs5 = tool_search_related_tasks(query=query, top_k=3, min_score=0.70, exclude_task_id=task_id)
-        self.log_step("tool_call", f"search_related_tasks(query='{task['title']}', top_k=3, min_score=0.70, exclude_task_id='{task_id}')", obs5)
-        
-        # Summary
-        summary = f"Mock investigation completed for task {task_id}. Retrieved details, PR events, and blockers."
-        self.log_step("complete", "Finish investigation", summary)
-        return summary
-
     def route_bottleneck(self, task: Dict[str, Any], context: str) -> str:
         """Classifies the bottleneck type strictly. (Router Node)"""
         system_prompt = """You are a classification router.
@@ -302,22 +306,42 @@ Classify this bottleneck.
 """
         response = call_llm(system_prompt, prompt, temperature=0.0) # strict/deterministic
         
-        if response == "MOCK_LLM_RESPONSE" or LLM_PROVIDER == "mock":
-            # Deterministic mock routing based on task seed data
-            status = task["status"]
+        if response == "SIMULATED_LLM_RESPONSE" or LLM_PROVIDER == "simulated":
             task_id = task["id"]
             
-            # Scenario 1: task-001 (PR fails, blocks task-002 which is blocked)
-            if task_id == "task-001":
+            # Fetch dependency graph, comments, and PR data
+            upstream = graph.get_upstream_blockers(task_id)
+            downstream = graph.get_downstream_impact(task_id)
+            activity = db.fetch_activity_log(task_id)
+            pr_history = db.fetch_pr_history(task_id)
+            
+            active_upstream_blockers = [b for b in upstream if b["status"] != "merged"]
+            
+            # Check review request signals
+            has_review_comment = any(
+                any(word in act["message"].lower() for word in ["review", "reviewer", "approv", "sign-off"])
+                for act in activity
+            )
+            
+            # Check external mention keywords
+            has_external_mention = any(
+                any(word in text.lower() for word in ["external", "api limit", "vendor", "partner", "hardware"])
+                for text in [task["description"], task["title"]] + [act["message"] for act in activity]
+            )
+
+            has_failed_pr = any(pr["status"] == "failed" for pr in pr_history)
+
+            # Algorithmic classification decision tree
+            if len(active_upstream_blockers) > 0:
                 return "DEPENDENCY_BLOCK"
-            elif task_id == "task-002":
+            elif len(downstream) > 0 and (has_failed_pr or task["status"] == "blocked"):
                 return "DEPENDENCY_BLOCK"
-            # Scenario 2: task-003 (in progress, overdue, failing PR #17, no external blockers)
-            elif task_id == "task-003":
-                return "SELF_STALL"
-            # Scenario 3: task-004 (in_review, comment says awaiting staff review)
-            elif task_id == "task-004":
+            elif task["status"] == "in_review" or has_review_comment:
                 return "REVIEW_WAIT"
+            elif has_external_mention:
+                return "EXTERNAL_BLOCK"
+            elif has_failed_pr or task["status"] == "in_progress":
+                return "SELF_STALL"
             else:
                 return "UNKNOWN"
                 
@@ -346,38 +370,60 @@ Generate the notification message.
 """
         response = call_llm(system_prompt, prompt, temperature=0.7) # creative/natural
         
-        if response == "MOCK_LLM_RESPONSE" or LLM_PROVIDER == "mock":
-            # Generate deterministic mock messages for the seed scenarios
+        if response == "SIMULATED_LLM_RESPONSE" or LLM_PROVIDER == "simulated":
             name = task["owner_name"]
             task_id = task["id"]
             title = task["title"]
             
             if classification == "DEPENDENCY_BLOCK":
-                # Find who is blocked
-                blocked = db.fetch_blocked_engineers(task_id)
-                blocked_names = list(dict.fromkeys([b["name"] for b in blocked]))
-                blocked_str = ", ".join(blocked_names) if blocked_names else "other team members"
+                upstream = graph.get_upstream_blockers(task_id)
+                active_upstream = [b for b in upstream if b["status"] != "merged"]
+                
+                if len(active_upstream) > 0:
+                    # Blocked by another task
+                    blocker = active_upstream[0]
+                    return (
+                        f"Hi {name}, your task {task_id} ('{title}') is currently blocked by "
+                        f"task {blocker['id']} ('{blocker['title']}') owned by {blocker['owner_name']}. "
+                        f"We will notify you once that prerequisite task is completed."
+                    )
+                else:
+                    # Delay is blocking others downstream
+                    blocked = db.fetch_blocked_engineers(task_id)
+                    blocked_names = list(dict.fromkeys([b["name"] for b in blocked]))
+                    blocked_str = ", ".join(blocked_names) if blocked_names else "other team members"
+                    
+                    pr_history = db.fetch_pr_history(task_id)
+                    pr_num = ""
+                    if pr_history:
+                        pr_num = f" (PR #{pr_history[0]['pr_id'].replace('pr-', '')})"
+                        
+                    return (
+                        f"Hi {name}, your task {task_id} ('{title}'){pr_num} has failed CI or is delayed, "
+                        f"which is blocking {blocked_str} from starting their downstream work. "
+                        f"Please prioritize checking the logs and moving this forward."
+                    )
+            elif classification == "SELF_STALL":
+                pr_history = db.fetch_pr_history(task_id)
+                pr_str = ""
+                if pr_history:
+                    pr_str = f" and PR #{pr_history[0]['pr_id'].replace('pr-', '')} is failing tests"
                 
                 return (
-                    f"Hi {name}, your PR #42 for task {task_id} ('{title}') has failed CI, "
-                    f"which is blocking {blocked_str} from progressing on their work. "
-                    f"Please check the integration test logs and resolve the failures as soon as possible."
-                )
-            elif classification == "SELF_STALL":
-                pr_id = task.get("related_pr_id", "PR")
-                return (
-                    f"Hi {name}, your task {task_id} ('{title}') is currently overdue (due {task['due_date']}) "
-                    f"and PR #{pr_id.replace('pr-', '') if pr_id else ''} is failing CI. Since there are no external blockers listed, "
-                    f"please check the load test results and complete the index migration."
+                    f"Hi {name}, task {task_id} ('{title}') is currently overdue (due {task['due_date']}){pr_str}. "
+                    f"Since there are no external dependencies blocking you, please resolve the remaining test failures "
+                    f"or finalize migrations to complete this task."
                 )
             elif classification == "REVIEW_WAIT":
                 return (
-                    f"Hi {name}, task {task_id} ('{title}') has been in review since its PR was opened. "
-                    f"It seems you are awaiting review on the idempotency design. "
-                    f"Please ping your reviewer/staff engineer to secure a sign-off on the design."
+                    f"Hi {name}, task {task_id} ('{title}') is in review. "
+                    f"Please follow up with your design reviewers or ping the staff engineer to secure a design sign-off."
                 )
             else:
-                return f"Hi {name}, task {task_id} ('{title}') appears to be stalled. Let us know if you need help resolving any obstacles."
+                return (
+                    f"Hi {name}, friendly nudge regarding task {task_id} ('{title}'). "
+                    f"Please check if there are any technical blocks hindering its completion."
+                )
                 
         return response
 

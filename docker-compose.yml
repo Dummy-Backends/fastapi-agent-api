@@ -7,7 +7,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - LLM_PROVIDER=mock
+      - LLM_PROVIDER=gemini
       - DATABASE_URL=sqlite:///recruitment.db
       - CHROMA_PERSIST_PATH=/app/chroma_db
       - HOST=0.0.0.0

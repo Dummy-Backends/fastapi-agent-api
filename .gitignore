@@ -1,5 +1,7 @@
 .DS_Store
-.doc/
 .env
 venv/
 __pycache__/
+chroma_db/
+recruitment.db
+.doc/

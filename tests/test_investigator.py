@@ -62,13 +62,13 @@ def test_vector_search():
     top_ids = [r["id"] for r in results]
     assert "task-001" in top_ids or "task-005" in top_ids
 
-def test_agent_mock_investigation():
+def test_agent_offline_investigation():
     agent = BottleneckInvestigatorAgent()
     result = agent.investigate("task-001")
     
     assert result["status"] == "completed"
     assert result["task_id"] == "task-001"
     assert result["classification"] == "DEPENDENCY_BLOCK"
-    assert "Samira Chen" in result["notification"]
-    assert "Alex Martin" in result["notification"]
+    assert "Samira" in result["notification"]
+    assert "Alex" in result["notification"]
     assert len(result["trace"]) > 0

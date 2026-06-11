@@ -145,7 +145,7 @@ def get_related_tasks(
     id: str,
     query: Optional[str] = Query(None, description="Optional search text. Defaults to task title + description."),
     k: int = Query(5, description="Number of results to retrieve."),
-    min_score: float = Query(0.70, description="Minimum similarity threshold score.")
+    min_score: float = Query(0.30, description="Minimum similarity threshold score.")
 ):
     """Get semantically related tasks for a specific task using embeddings."""
     task = db.fetch_task(id)
