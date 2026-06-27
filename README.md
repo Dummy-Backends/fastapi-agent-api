@@ -1,3 +1,7 @@
+Made By [Yassine Zorgui](https://github.com/yassinezorgui)
+
+---
+
 # TeamBoostAI — Mini System-Aware PR Bottleneck Investigator
 
 This is a lightweight system prototype that simulates how TeamBoostAI detects when work is stalled, maps task dependencies, identifies who is blocking whom, and produces actionable notifications for engineers.
